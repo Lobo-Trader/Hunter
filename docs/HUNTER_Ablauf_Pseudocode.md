@@ -38,14 +38,14 @@ Für jeden TF:
 ### LONG-Bedingung:
 - In allen TF:
     - close > EMA50
-    - Chop Zone ist „blau“ (laut Farblogik); KEIN „gelb“ im M1
+    - Chop Zone wurde gerade „blau“ (laut Farblogik)
     - MagicTrend ist blau
 - Wenn **alle** Bedingungen erfüllt → LONG-SIGNAL
 
 ### SHORT-Bedingung:
 - In allen TF:
     - close < EMA50
-    - Chop Zone ist „rot“ (laut Farblogik); KEIN „gelb“ im M1
+    - Chop Zone wurde gerade „rot“ (laut Farblogik)
     - MagicTrend ist rot
 - Wenn **alle** Bedingungen erfüllt → SHORT-SIGNAL
 
