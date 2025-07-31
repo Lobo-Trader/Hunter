@@ -35,7 +35,7 @@ Für jeden TF:
 
 ## 3. Hunter Signalbedingungen – Version 1.00
 
-# LONG-Bedingung:
+### LONG-Bedingung:
 - In **allen Timeframes (z.B. M1, M5, M15, M30)**:
     - `close > EMA50`
     - Chop Zone ist **„blau“** (laut Farblogik)
@@ -47,7 +47,7 @@ Für jeden TF:
 
 ---
 
-# SHORT-Bedingung:
+### SHORT-Bedingung:
 - In **allen Timeframes (z.B. M1, M5, M15, M30)**:
     - `close < EMA50`
     - Chop Zone ist **„rot“** (laut Farblogik)
@@ -59,7 +59,7 @@ Für jeden TF:
 
 ---
 
-# Hinweise:
+### Hinweise:
 - In den Kontroll-TFs (M5, M15, M30) reicht es, wenn die ChopZone-Farbe aktuell „blau“ (Long) bzw. „rot“ (Short) ist.  
 - **Der eigentliche Farbwechsel ist nur im M1 relevant** und Voraussetzung für das Signal.
 - Kein Signal, wenn irgendwo im Stack noch ein „gelb“ ist oder der Farbwechsel im M1 fehlt!
