@@ -33,22 +33,36 @@ Für jeden TF:
 
 ---
 
-## 3. Hauptlogik – Signalprüfung
+## 3. Hunter Signalbedingungen – Version 1.00
 
-### LONG-Bedingung:
-- In allen TF:
-    - close > EMA50
-    - Chop Zone wurde gerade „blau“ (laut Farblogik)
-    - MagicTrend ist blau
-- Wenn **alle** Bedingungen erfüllt → LONG-SIGNAL
+# LONG-Bedingung:
+- In **allen Timeframes (z.B. M1, M5, M15, M30)**:
+    - `close > EMA50`
+    - Chop Zone ist **„blau“** (laut Farblogik)
+    - MagicTrend ist **blau**
+- **Zusätzlich im Haupt-TF (M1):**
+    - Chop Zone hat **gerade von „rot“ auf „blau“ gewechselt** (Farbwechsel von Vorperiode auf aktuelle Periode)
+- Wenn **alle** Bedingungen erfüllt sind:  
+  → **LONG-SIGNAL**
 
-### SHORT-Bedingung:
-- In allen TF:
-    - close < EMA50
-    - Chop Zone wurde gerade „rot“ (laut Farblogik)
-    - MagicTrend ist rot
-- Wenn **alle** Bedingungen erfüllt → SHORT-SIGNAL
+---
 
+# SHORT-Bedingung:
+- In **allen Timeframes (z.B. M1, M5, M15, M30)**:
+    - `close < EMA50`
+    - Chop Zone ist **„rot“** (laut Farblogik)
+    - MagicTrend ist **rot**
+- **Zusätzlich im Haupt-TF (M1):**
+    - Chop Zone hat **gerade von „blau“ auf „rot“ gewechselt** (Farbwechsel von Vorperiode auf aktuelle Periode)
+- Wenn **alle** Bedingungen erfüllt sind:  
+  → **SHORT-SIGNAL**
+
+---
+
+# Hinweise:
+- In den Kontroll-TFs (M5, M15, M30) reicht es, wenn die ChopZone-Farbe aktuell „blau“ (Long) bzw. „rot“ (Short) ist.  
+- **Der eigentliche Farbwechsel ist nur im M1 relevant** und Voraussetzung für das Signal.
+- Kein Signal, wenn irgendwo im Stack noch ein „gelb“ ist oder der Farbwechsel im M1 fehlt!
 ---
 
 ## 4. Signalvisualisierung
