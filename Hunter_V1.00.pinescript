@@ -1,0 +1,178 @@
+//@version=5
+// Hunter_V1.00 – Multi-Timeframe Trendfolgesystem für Forex
+// Entwickelt gemeinsam mit Nova (Copilot) & Wolfgang, Stand 2025-07-31
+// Features: M1-Chart, prüft M1/M5/M15/M30, Pfeil/Linie/Label, flexibles Debugging, ChopZone/Trend/MT-Logik
+
+indicator("Hunter_V1.00 FX Trend System", overlay=true, max_labels_count=500, max_lines_count=500)
+
+// ====== INPUTS ====== //
+pairName = input.string("USDJPY", "Währungspaar (nur Info)")
+showDebug = input.bool(true, "Debug-Infos im Chart anzeigen?")
+visualMode = input.string("Pfeil", "Visualisierung", options=["Pfeil", "Linie", "Label"])
+showSL = input.bool(false, "Stop-Loss Level anzeigen?")
+allowYellowHigherTF = input.bool(true, "Gelb in höheren TFs zulassen? (M1 nie)")
+// Chop Zone Farben individuell wählbar
+czBlau = input.string("turquoise,dg,pg,lime", "ChopZone Farben für 'Blau' (Komma-getrennt, Kürzel: turquoise,dg,pg,lime)")
+czRot  = input.string("dr,red,orange,lorange", "ChopZone Farben für 'Rot' (Komma-getrennt, Kürzel: dr,red,orange,lorange)")
+czYellow = input.string("yellow", "ChopZone Farbe für 'Gelb'")
+
+// ====== MULTI-TF SETTINGS ====== //
+tfs = array.from("1", "5", "15", "30")
+tf_labels = array.from("M1", "M5", "M15", "M30")
+tfstr(idx) => array.get(tfs, idx)
+tflabel(idx) => array.get(tf_labels, idx)
+
+// ====== INDICATOR PARAMS ====== //
+cci_period = input.int(20, "TM: CCI Period")
+atr_period = input.int(5, "TM: ATR Period")
+atr_coeff  = input.float(1, "TM: ATR-Multiplikator")
+ema_period = input.int(50, "EMA Period (Trendfilter)")
+
+// ====== COLOR CODES CHOP ZONE ====== //
+czColors = {
+    "turquoise": color.new(#26C6DA, 0),
+    "dg":        color.new(#43A047, 0),
+    "pg":        color.new(#A5D6A7, 0),
+    "lime":      color.new(#009688, 0),
+    "dr":        color.new(#D50000, 0),
+    "red":       color.new(#E91E63, 0),
+    "orange":    color.new(#FF6D00, 0),
+    "lorange":   color.new(#FFB74D, 0),
+    "yellow":    color.new(#FDD835, 0)
+}
+
+// ====== CHOP ZONE LOGIK ====== //
+getChopZoneColor(tf) =>
+    // Berechnung wie im Original
+    [source, avg] = [request.security(syminfo.tickerid, tf, close), request.security(syminfo.tickerid, tf, hlc3)]
+    periods = 30
+    pi = math.atan(1) * 4
+    highestHigh = request.security(syminfo.tickerid, tf, ta.highest(high, periods))
+    lowestLow = request.security(syminfo.tickerid, tf, ta.lowest(low, periods))
+    span = 25 / (highestHigh - lowestLow + 1e-8) * lowestLow
+    ema34 = request.security(syminfo.tickerid, tf, ta.ema(source, 34))
+    y2_ema34 = (ema34[1] - ema34) / avg * span
+    c_ema34 = math.sqrt(1 + y2_ema34 * y2_ema34)
+    emaAngle_1 = math.round(180 * math.acos(1 / c_ema34) / pi)
+    emaAngle = y2_ema34 > 0 ? -emaAngle_1 : emaAngle_1
+    chopZoneColor =
+        emaAngle >= 5      ? "turquoise" :
+        emaAngle < 5  and emaAngle >= 3.57 ? "dg" :
+        emaAngle < 3.57 and emaAngle >= 2.14 ? "pg" :
+        emaAngle < 2.14 and emaAngle >= .71  ? "lime" :
+        emaAngle <= -5     ? "dr" :
+        emaAngle > -5  and emaAngle <= -3.57 ? "red" :
+        emaAngle > -3.57 and emaAngle <= -2.14 ? "orange" :
+        emaAngle > -2.14 and emaAngle <= -.71  ? "lorange" :
+        "yellow"
+    [chopZoneColor, czColors[chopZoneColor]]
+
+// Farblogik verarbeiten (Inputs -> Sets)
+czBlauSet = str.split(czBlau, ",")
+czRotSet = str.split(czRot, ",")
+czYellowSet = str.split(czYellow, ",")
+
+cz_is_blau(col) =>
+    var arr = czBlauSet
+    for i = 0 to array.size(arr)-1
+        if str.trim(array.get(arr, i)) == col
+            return true
+    false
+
+cz_is_rot(col) =>
+    var arr = czRotSet
+    for i = 0 to array.size(arr)-1
+        if str.trim(array.get(arr, i)) == col
+            return true
+    false
+
+cz_is_yellow(col) =>
+    var arr = czYellowSet
+    for i = 0 to array.size(arr)-1
+        if str.trim(array.get(arr, i)) == col
+            return true
+    false
+
+// ====== TM (MAGICTREND) ====== //
+getMagicTrend(tf) =>
+    src = request.security(syminfo.tickerid, tf, close)
+    tr_ = request.security(syminfo.tickerid, tf, ta.tr)
+    atr = request.security(syminfo.tickerid, tf, ta.sma(tr_, atr_period))
+    upT = request.security(syminfo.tickerid, tf, low) - atr * atr_coeff
+    downT = request.security(syminfo.tickerid, tf, high) + atr * atr_coeff
+    cci = request.security(syminfo.tickerid, tf, ta.cci(src, cci_period))
+    var float MagicTrend = na
+    MagicTrend := cci >= 0 ? (upT < nz(MagicTrend[1]) ? nz(MagicTrend[1]) : upT) : (downT > nz(MagicTrend[1]) ? nz(MagicTrend[1]) : downT)
+    color1 = cci >= 0 ? color.new(#0022FC, 0) : color.new(#FC0400, 0)
+    [MagicTrend, color1, cci]
+
+// ====== EMA50 ====== //
+getEMA50(tf) =>
+    request.security(syminfo.tickerid, tf, ta.ema(close, ema_period))
+
+// ====== SIGNAL PRÜFUNG & COLLECTOR ====== //
+isLong = true
+isShort = true
+debugMsg = ""
+debugArr = array.new_string()
+czColorsArr = array.new_string()
+czHumanArr = array.new_string()
+var signalBar = na
+var signalDir = ""
+
+for i = 0 to array.size(tfs)-1
+    tf = array.get(tfs, i)
+    tflab = array.get(tf_labels, i)
+    ema = getEMA50(tf)
+    close_ = request.security(syminfo.tickerid, tf, close)
+    [czCol, czRGB] = getChopZoneColor(tf)
+    [tmVal, tmCol, cci] = getMagicTrend(tf)
+    czColorsArr.push(czCol)
+    czHumanArr.push(str.tostring(czCol)+" ("+tflab+")")
+    // LONG Prüfung
+    longOK = close_ > ema and cz_is_blau(czCol) and (cci >= 0)
+    // Gelb-Handling
+    if cz_is_yellow(czCol)
+        if i == 0  // M1
+            longOK := false
+        else
+            longOK := longOK and allowYellowHigherTF
+    isLong := isLong and longOK
+    // SHORT Prüfung
+    shortOK = close_ < ema and cz_is_rot(czCol) and (cci < 0)
+    if cz_is_yellow(czCol)
+        if i == 0
+            shortOK := false
+        else
+            shortOK := shortOK and allowYellowHigherTF
+    isShort := isShort and shortOK
+    if showDebug
+        debugArr.push("["+tflab+"] close="+str.tostring(close_, format.mintick)+" | EMA50="+str.tostring(ema, format.mintick)+" | CZ="+czCol+" | CCI="+str.tostring(cci, format.mintick)+" | longOK="+str.tostring(longOK)+" | shortOK="+str.tostring(shortOK))
+
+// ====== SIGNALAUSGABE ====== //
+plotshape(isLong, color=color.new(color.green, 0), style=shape.triangleup, location=location.belowbar, title="Long Signal", size=size.normal, text="L", offset=0, display=visualMode=="Pfeil"?display.all:display.none)
+plotshape(isShort, color=color.new(color.red, 0), style=shape.triangledown, location=location.abovebar, title="Short Signal", size=size.normal, text="S", offset=0, display=visualMode=="Pfeil"?display.all:display.none)
+plotshape(isLong and visualMode=="Label", color=color.new(color.green, 0), style=shape.labelup, location=location.belowbar, title="Long Label", size=size.small, text="LONG")
+plotshape(isShort and visualMode=="Label", color=color.new(color.red, 0), style=shape.labeldown, location=location.abovebar, title="Short Label", size=size.small, text="SHORT")
+plot(isLong and visualMode=="Linie"?1:na, color=color.green, style=plot.style_stepline, linewidth=2, title="Long Linie")
+plot(isShort and visualMode=="Linie"?1:na, color=color.red, style=plot.style_stepline, linewidth=2, title="Short Linie")
+
+// ====== STOP-LOSS (INFO) ====== //
+slLevel = na
+if isLong
+    slLevel := ta.lowest(low, 2)[1]
+if isShort
+    slLevel := ta.highest(high, 2)[1]
+plot(showSL and not na(slLevel) ? slLevel : na, style=plot.style_circles, color=color.yellow, linewidth=2, title="Stop-Loss Level")
+
+// ====== DEBUG-BOX ====== //
+if showDebug
+    var table t = table.new(position.top_right, 1, 16, border_width=2)
+    if bar_index % 10 == 0  // Clear all 10 bars
+        table.clear(t)
+    table.cell(t, 0, 0, "HUNTER_V1.00 ("+pairName+")", bgcolor=color.silver, text_color=color.black)
+    table.cell(t, 0, 1, "Long: "+str.tostring(isLong)+" | Short: "+str.tostring(isShort), bgcolor=color.silver, text_color=color.black)
+    for i = 0 to array.size(debugArr)-1
+        table.cell(t, 0, i+2, array.get(debugArr, i), bgcolor=color.navy, text_color=color.white)
+    table.cell(t, 0, array.size(debugArr)+3, "CZ Farben: "+str.join(", ", czHumanArr), bgcolor=color.gray, text_color=color.white)
+    table.cell(t, 0, array.size(debugArr)+4, "SL: "+(not na(slLevel)?str.tostring(slLevel,format.mintick):"n/a"), bgcolor=color.gray, text_color=color.white)
