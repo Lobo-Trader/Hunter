@@ -99,15 +99,6 @@ Für jeden TF:
 ## Pseudocode (schematisch)
 
 ```pseudocode
-// Initialisierung
-inputs = {ChopZoneFarben, GelbHandling, Debug, VisualStyle}
-timeframes = [M1, M5, M15, M30]
-for tf in timeframes:
-    ema50[tf] = calcEMA50(tf)
-    magicTrend[tf] = calcMagicTrend(tf)
-    chopZone[tf] = calcChopZone(tf)
-    close[tf] = getClose(tf)
-
 // Signalprüfung LONG/SHORT
 longSignal = true
 shortSignal = true
@@ -117,21 +108,19 @@ for tf in timeframes:
     if close[tf] >= ema50[tf] or !isChopZoneRot(chopZone[tf], tf) or !isMagicTrendRot(magicTrend[tf]):
         shortSignal = false
 
+// ChopZone-Wechsel in M1 notwendig für Signal!
+chopWechselLong = (chopZone[M1,1] == "rot" and chopZone[M1] == "blau")
+chopWechselShort = (chopZone[M1,1] == "blau" and chopZone[M1] == "rot")
+
 // Visualisierung & Debug
-if longSignal:
+if longSignal and chopWechselLong:
     showArrow("LONG", style=inputs.VisualStyle)
     logDebugInfo("LONG", allConditions)
-if shortSignal:
+if shortSignal and chopWechselShort:
     showArrow("SHORT", style=inputs.VisualStyle)
     logDebugInfo("SHORT", allConditions)
-if !longSignal && !shortSignal && inputs.Debug:
+if !(longSignal and chopWechselLong) && !(shortSignal and chopWechselShort) && inputs.Debug:
     logDebugInfo("NONE", allConditions)
-
-// Stop Loss Info
-if longSignal:
-    stopLoss = getLastLow(M1)
-if shortSignal:
-    stopLoss = getLastHigh(M1)
 ```
 ---
 
